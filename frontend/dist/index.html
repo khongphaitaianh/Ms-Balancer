@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModelScope Balancer - 智能负载均衡器</title>
+    <link rel="stylesheet" href="output.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="app.js" defer></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-inter">
+    <!-- Simple Top Navigation -->
+    <header class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Brand -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-gray-900">ModelScope Balancer</h1>
+                        <p class="text-xs text-gray-500">智能API负载均衡器</p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex space-x-8">
+                    <a href="#keys" class="nav-link text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-blue-600 transition-colors">
+                        密钥管理
+                    </a>
+                    <a href="#test" class="nav-link text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-blue-600 transition-colors">
+                        健康检查
+                    </a>
+                    <a href="#settings" class="nav-link text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium border-b-2 border-transparent hover:border-blue-600 transition-colors">
+                        设置
+                    </a>
+                    <button id="logout-btn" class="text-red-600 hover:text-red-700 px-3 py-2 text-sm font-medium transition-colors">
+                        退出登录
+                    </button>
+                </nav>
+
+                <!-- Status -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm text-gray-600">在线</span>
+                    </div>
+                    <div class="text-sm text-gray-600" id="keys-count">7 个密钥</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="main-content">
+            <!-- Content will be dynamically loaded here -->
+        </div>
+    </main>
+
+    <!-- Template for Keys Management Page -->
+    <template id="keys-template">
+        <div class="keys-page">
+            <!-- Header Section -->
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">API密钥管理</h1>
+                    <p class="text-sm text-gray-500 mt-1">管理您的ModelScope API密钥</p>
+                    <p class="text-sm text-gray-400 mt-1" id="last-updated">最后更新: 2025/7/28 16:57:43</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <input type="text"
+                           id="new-key-input"
+                           placeholder="输入或粘贴API密钥..."
+                           class="w-80 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <button id="add-key-btn"
+                            class="inline-flex items-center px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        添加密钥
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="keys-loading" class="hidden">
+                <div class="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="text-gray-500 mt-4">加载中...</p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="keys-empty" class="hidden">
+                <div class="bg-white rounded-lg border border-gray-200 p-16 text-center">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">暂无API密钥</h3>
+                    <p class="text-gray-500 mb-6">添加您的第一个ModelScope API密钥开始使用</p>
+                    <button onclick="document.getElementById('new-key-input').focus()"
+                            class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        添加第一个密钥
+                    </button>
+                </div>
+            </div>
+
+            <!-- Keys Grid -->
+            <div id="keys-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Keys will be dynamically inserted here -->
+            </div>
+        </div>
+    </template>
+
+
+
+    <!-- Template for Keys Management Page -->
+    <template id="keys-template">
+        <div class="keys-page space-y-6">
+            <!-- Hero Section with Add Key -->
+            <div class="relative overflow-hidden bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 rounded-3xl border border-white/60 shadow-xl shadow-black/5" style="z-index: 1;">
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5"></div>
+                <div class="relative px-8 py-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-3">
+                                <div>
+                                    <h1 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">API密钥管理</h1>
+                                    <p class="text-sm text-gray-500 font-medium mt-1">管理您的ModelScope API密钥</p>
+                                </div>
+                            </div>
+                            <div class="hidden sm:block">
+                                <span id="last-updated" class="text-sm text-gray-500 bg-white/60 px-3 py-1 rounded-lg">最后更新: --</span>
+                            </div>
+                        </div>
+
+                        <!-- Enhanced Add Key Form -->
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <input type="text"
+                                       id="new-key-input"
+                                       placeholder="输入或粘贴API密钥..."
+                                       class="w-80 pl-4 pr-12 py-3 bg-white/80 backdrop-blur-sm border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-sm placeholder-gray-400 shadow-sm">
+
+                            </div>
+                            <button id="add-key-btn"
+                                    class="group inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 transition-all duration-300 text-sm shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5">
+                                <svg class="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                添加密钥
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="keys-loading" class="hidden">
+                <div class="bg-white/60 backdrop-blur-sm rounded-3xl border border-white/60 shadow-xl shadow-black/5 p-12 text-center">
+                    <div class="relative">
+                        <div class="w-16 h-16 mx-auto mb-6">
+                            <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-spin opacity-75"></div>
+                            <div class="absolute inset-2 bg-white rounded-full"></div>
+                            <div class="absolute inset-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">正在加载密钥</h3>
+                    <p class="text-gray-600">请稍候，正在获取您的API密钥列表...</p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="keys-empty" class="hidden">
+                <div class="relative overflow-hidden bg-gradient-to-br from-white via-gray-50/30 to-blue-50/30 rounded-3xl border border-white/60 shadow-xl shadow-black/5 p-16 text-center">
+                    <div class="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-blue-500/5"></div>
+                    <div class="relative">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-3">暂无API密钥</h3>
+                        <p class="text-gray-600 mb-8 max-w-md mx-auto">开始添加您的第一个ModelScope API密钥，体验智能负载均衡服务</p>
+                        <button onclick="document.getElementById('new-key-input').focus()"
+                                class="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-1">
+                            <svg class="w-5 h-5 mr-3 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            添加第一个密钥
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keys Grid -->
+            <div id="keys-table-container" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="keys-grid">
+                    <!-- Keys will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template for Health Check Page -->
+    <template id="test-template">
+        <div class="test-page space-y-6">
+            <!-- Hero Section with Test Configuration -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300 overflow-hidden">
+                <div class="relative bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h1 class="text-xl font-bold text-gray-900">健康检查</h1>
+                                <p class="text-sm text-gray-600 mt-1">测试API密钥的可用性和响应时间</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500 bg-white/60 px-3 py-1 rounded-lg">
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></div>
+                            <span>实时监控</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-6">
+                    <!-- Test Source Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">测试来源</label>
+                        <div class="flex flex-wrap gap-3">
+                            <label class="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors min-w-0 flex-1">
+                                <input type="radio" name="test-source" value="system" checked class="text-blue-600 focus:ring-blue-500">
+                                <span class="ml-3 text-sm font-medium text-gray-700">系统内密钥</span>
+                            </label>
+                            <label class="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors min-w-0 flex-1">
+                                <input type="radio" name="test-source" value="custom" class="text-blue-600 focus:ring-blue-500">
+                                <span class="ml-3 text-sm font-medium text-gray-700">自定义密钥</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Model and Actions Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Model Selection -->
+                        <div>
+                            <label for="model-select-for-test" class="block text-sm font-medium text-gray-700 mb-3">测试模型</label>
+                            <select id="model-select-for-test" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="">选择测试模型...</option>
+                            </select>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">操作</label>
+                            <div class="flex gap-3">
+                                <button id="start-test-btn"
+                                        class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span id="start-test-text">开始测试</span>
+                                </button>
+                                <button id="import-txt-btn"
+                                        class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors shadow-sm">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                                    </svg>
+                                    从TXT导入
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Keys Section (Hidden by default) -->
+            <div id="custom-keys-section" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300 overflow-hidden">
+                <div class="relative bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-100">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-gray-400 to-gray-500 rounded-xl flex items-center justify-center shadow-lg">
+                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">自定义密钥</h3>
+                            <p class="text-sm text-gray-600 mt-1">输入要测试的API密钥列表</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <textarea id="custom-keys-textarea"
+                              placeholder="每行一个密钥...&#10;例如：&#10;ms-xxxxxxxxxxxxxxxx&#10;ms-yyyyyyyyyyyyyyyy"
+                              rows="8"
+                              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none font-mono placeholder-gray-400"></textarea>
+                </div>
+            </div>
+
+            <!-- Action Buttons Section -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300 overflow-hidden">
+                <div class="relative bg-gradient-to-r from-purple-50 to-pink-50 p-6 border-b border-gray-100">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">智能操作</h3>
+                            <p class="text-sm text-gray-600 mt-1">根据测试结果执行相应操作</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="flex flex-wrap gap-3">
+                        <!-- 添加有效密钥到系统 (仅自定义密钥测试时显示) -->
+                        <button id="add-valid-keys-btn" disabled style="display: none;"
+                                class="flex-1 min-w-0 inline-flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            添加有效密钥到系统
+                        </button>
+
+                        <!-- 移除失效密钥 (仅系统密钥测试时显示) -->
+                        <button id="remove-invalid-keys-btn" disabled style="display: none;"
+                                class="flex-1 min-w-0 inline-flex items-center justify-center px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            移除失效密钥
+                        </button>
+
+                        <!-- 导出有效密钥 (两种测试来源都显示) -->
+                        <button id="export-valid-keys-btn" disabled
+                                class="flex-1 min-w-0 inline-flex items-center justify-center px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            导出有效密钥
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div id="statistics-section" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300 overflow-hidden">
+                <div class="relative bg-gradient-to-r from-orange-50 to-yellow-50 p-6 border-b border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-gray-900">实时统计</h3>
+                                <p class="text-sm text-gray-600 mt-1">测试进度和结果统计</p>
+                            </div>
+                        </div>
+                        <div id="test-status-indicator" class="flex items-center text-sm text-gray-500 bg-white px-3 py-2 rounded-lg border border-gray-200">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                            <span>等待开始</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                        <!-- Statistics Grid -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-900" id="total-count">0</div>
+                                <div class="text-sm text-gray-600 font-medium">总数</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-600" id="valid-count">0</div>
+                                <div class="text-sm text-gray-600 font-medium">有效数</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-red-600" id="invalid-count">0</div>
+                                <div class="text-sm text-gray-600 font-medium">无效数</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600" id="success-rate">0%</div>
+                                <div class="text-sm text-gray-600 font-medium">成功率</div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span id="test-progress-text" class="font-medium">等待开始测试...</span>
+                                <span id="test-progress-percentage" class="font-bold">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-200/60 rounded-full h-3 shadow-inner">
+                                <div id="test-progress-bar" class="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300 overflow-hidden">
+                <div class="relative bg-gradient-to-r from-green-50 to-blue-50 p-6 border-b border-gray-100">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-14 h-14 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">测试结果</h3>
+                            <p class="text-sm text-gray-600 mt-1">密钥测试详细结果</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="test-results-empty" class="p-12 text-center">
+                    <div class="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">准备开始健康检查</h3>
+                    <p class="text-gray-600 text-sm">选择测试源和模型，然后点击"开始测试"来检查密钥的连通性和响应状态</p>
+                </div>
+
+                    <!-- Results Container -->
+                    <div id="test-results" class="hidden p-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Valid Keys Section -->
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-lg font-semibold text-green-700 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        有效密钥
+                                    </h4>
+                                    <span id="valid-keys-count" class="text-sm text-gray-600 bg-green-50 px-3 py-1 rounded-lg border border-green-200">0 个</span>
+                                </div>
+                                <textarea id="valid-keys-textarea" readonly
+                                          placeholder="有效的密钥将显示在这里..."
+                                          rows="12"
+                                          class="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm resize-none font-mono text-green-800 placeholder-green-400"></textarea>
+                            </div>
+
+                            <!-- Invalid Keys Section -->
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-lg font-semibold text-red-700 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        无效密钥
+                                    </h4>
+                                    <span id="invalid-keys-count" class="text-sm text-gray-600 bg-red-50 px-3 py-1 rounded-lg border border-red-200">0 个</span>
+                                </div>
+                                <textarea id="invalid-keys-textarea" readonly
+                                          placeholder="无效的密钥和错误信息将显示在这里..."
+                                          rows="12"
+                                          class="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm resize-none font-mono text-red-800 placeholder-red-400"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Settings Page Template -->
+    <template id="settings-template">
+        <div class="max-w-4xl mx-auto p-6 space-y-8">
+            <!-- Page Header -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">系统设置</h1>
+                        <p class="text-gray-600">配置系统参数和自动化功能</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Authentication Settings -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+                <div class="p-6">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">认证设置</h2>
+                            <p class="text-sm text-gray-600">管理API访问令牌</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Admin Token -->
+                        <div class="space-y-2">
+                            <label for="admin-token-input" class="block text-sm font-medium text-gray-700">
+                                管理员令牌 (Admin Token)
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="admin-token-input"
+                                       class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                       placeholder="输入管理员令牌">
+                                <button type="button" id="toggle-admin-token"
+                                        class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 transition-colors">
+                                    <svg class="w-5 h-5" id="admin-token-eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    <svg class="w-5 h-5 hidden" id="admin-token-eye-closed" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500">用于保护Web UI的管理API</p>
+                        </div>
+
+                        <!-- API Token -->
+                        <div class="space-y-2">
+                            <label for="api-token-input" class="block text-sm font-medium text-gray-700">
+                                API令牌 (API Token)
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="api-token-input"
+                                       class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                       placeholder="输入API令牌">
+                                <button type="button" id="toggle-api-token"
+                                        class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 transition-colors">
+                                    <svg class="w-5 h-5" id="api-token-eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    <svg class="w-5 h-5 hidden" id="api-token-eye-closed" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500">用于保护/v1代理接口</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-Reactivation Settings -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+                <div class="p-6">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">自动重新激活设置</h2>
+                            <p class="text-sm text-gray-600">配置密钥自动重新激活功能</p>
+                        </div>
+                    </div>
+
+                    <!-- Master Switch -->
+                    <div class="mb-6">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="auto-reactivation-enabled"
+                                   class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <div>
+                                <span class="text-sm font-medium text-gray-900">启用自动重新激活</span>
+                                <p class="text-xs text-gray-500">自动重新激活被禁用的密钥</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Settings Container -->
+                    <div id="auto-reactivation-settings" class="space-y-6">
+                        <!-- Mode Selection -->
+                        <div class="space-y-3">
+                            <label class="block text-sm font-medium text-gray-700">运行模式</label>
+                            <div class="flex flex-wrap gap-4">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="radio" name="reactivation-mode" value="interval" id="mode-interval"
+                                           class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-900">间隔模式</span>
+                                        <p class="text-xs text-gray-500">按固定时间间隔运行</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="radio" name="reactivation-mode" value="scheduled" id="mode-scheduled"
+                                           class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-900">定时模式</span>
+                                        <p class="text-xs text-gray-500">按Cron表达式定时运行</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Interval Settings -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Activation Interval -->
+                            <div class="space-y-2">
+                                <label for="activation-interval-input" class="block text-sm font-medium text-gray-700">
+                                    激活间隔
+                                </label>
+                                <input type="text" id="activation-interval-input"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                       placeholder="例如: 10m, 1h30m, 2h">
+                                <p class="text-xs text-gray-500">间隔模式下的重新激活间隔时间</p>
+                            </div>
+
+                            <!-- Cron Expression with Time Picker -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    定时设置
+                                </label>
+
+                                <!-- Time Picker Mode -->
+                                <div id="cron-time-picker" class="space-y-3">
+                                    <div class="flex items-center space-x-2">
+                                        <label class="text-sm text-gray-600">每天</label>
+                                        <div class="flex items-center space-x-1">
+                                            <input type="number" id="cron-hour" min="0" max="23" value="0"
+                                                   class="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-gray-500">:</span>
+                                            <input type="number" id="cron-minute" min="0" max="59" value="0"
+                                                   class="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                        <label class="text-sm text-gray-600">执行</label>
+                                    </div>
+
+                                    <!-- Quick Time Buttons -->
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" class="cron-quick-btn px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors" data-time="0:0">午夜 (00:00)</button>
+                                        <button type="button" class="cron-quick-btn px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors" data-time="6:0">早晨 (06:00)</button>
+                                        <button type="button" class="cron-quick-btn px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors" data-time="12:0">中午 (12:00)</button>
+                                        <button type="button" class="cron-quick-btn px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors" data-time="18:0">傍晚 (18:00)</button>
+                                        <button type="button" class="cron-quick-btn px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors" data-time="23:59">深夜 (23:59)</button>
+                                    </div>
+                                </div>
+
+                                <!-- Advanced Cron Expression (Hidden by default) -->
+                                <div class="space-y-2">
+                                    <button type="button" id="toggle-advanced-cron" class="text-sm text-blue-600 hover:text-blue-700 underline">
+                                        高级设置 (Cron表达式)
+                                    </button>
+                                    <div id="advanced-cron-container" class="hidden">
+                                        <input type="text" id="cron-expression-input"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                               placeholder="例如: 0 0 * * * (每天午夜)">
+                                        <p class="text-xs text-gray-500">自定义Cron调度表达式</p>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-gray-500">定时模式下的执行时间设置</p>
+                            </div>
+                        </div>
+
+                        <!-- Timezone -->
+                        <div class="space-y-2">
+                            <label for="timezone-input" class="block text-sm font-medium text-gray-700">
+                                时区设置
+                            </label>
+                            <select id="timezone-input"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+                                <option value="Asia/Shanghai">Asia/Shanghai (北京时间)</option>
+                                <option value="UTC">UTC (协调世界时)</option>
+                                <option value="America/New_York">America/New_York (纽约时间)</option>
+                                <option value="Europe/London">Europe/London (伦敦时间)</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo (东京时间)</option>
+                                <option value="Local">Local (本地时间)</option>
+                            </select>
+                            <p class="text-xs text-gray-500">定时任务使用的时区</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end">
+                <button id="save-settings-btn"
+                        class="px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span>保存设置</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </template>
+</body>
+</html>

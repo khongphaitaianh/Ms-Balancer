@@ -1,0 +1,12 @@
+# 编译产物
+modelscope-balancer
+
+# Node.js依赖
+frontend/node_modules/
+
+# 大型可执行文件
+frontend/tailwindcss.exe
+
+# 系统文件
+.DS_Store
+Thumbs.db
