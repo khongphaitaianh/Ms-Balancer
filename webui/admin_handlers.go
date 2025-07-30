@@ -12,6 +12,7 @@ import (
 
 	"github.com/loseleaf/modelscope-balancer/config"
 	"github.com/loseleaf/modelscope-balancer/keymanager"
+	"github.com/loseleaf/modelscope-balancer/middleware"
 	"github.com/loseleaf/modelscope-balancer/scheduler"
 )
 
@@ -21,6 +22,8 @@ type AdminHandler struct {
 	logger     *slog.Logger
 	adminToken string
 	scheduler  *scheduler.Scheduler
+	adminAuth  *middleware.DynamicAuthenticator
+	apiAuth    *middleware.DynamicAuthenticator
 }
 
 // Request structures for key operations
@@ -34,12 +37,14 @@ type DisableKeyRequest struct {
 }
 
 // NewAdminHandler creates a new AdminHandler instance
-func NewAdminHandler(km *keymanager.KeyManager, logger *slog.Logger, adminToken string, scheduler *scheduler.Scheduler) *AdminHandler {
+func NewAdminHandler(km *keymanager.KeyManager, logger *slog.Logger, adminToken string, scheduler *scheduler.Scheduler, adminAuth *middleware.DynamicAuthenticator, apiAuth *middleware.DynamicAuthenticator) *AdminHandler {
 	return &AdminHandler{
 		km:         km,
 		logger:     logger,
 		adminToken: adminToken,
 		scheduler:  scheduler,
+		adminAuth:  adminAuth,
+		apiAuth:    apiAuth,
 	}
 }
 
@@ -843,6 +848,21 @@ func (ah *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 				"interval", autoReactivation.Interval,
 				"cron_spec", autoReactivation.CronSpec,
 				"timezone", autoReactivation.Timezone)
+		}
+	}
+
+	// Check if authentication tokens were updated and update dynamic authenticators
+	if adminToken, exists := newSettings["admin_token"]; exists {
+		if tokenStr, ok := adminToken.(string); ok {
+			ah.adminAuth.UpdateToken(tokenStr)
+			ah.logger.Info("Admin token updated dynamically", "new_token_length", len(tokenStr))
+		}
+	}
+
+	if apiToken, exists := newSettings["api_token"]; exists {
+		if tokenStr, ok := apiToken.(string); ok {
+			ah.apiAuth.UpdateToken(tokenStr)
+			ah.logger.Info("API token updated dynamically", "new_token_length", len(tokenStr))
 		}
 	}
 

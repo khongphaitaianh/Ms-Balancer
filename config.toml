@@ -1,39 +1,12 @@
-# ModelScope Balancer 配置文件
-
-# 服务器监听地址和端口
+admin_token = 'admin123'
+api_keys = []
+api_token = '123'
+reactivation_threshold = '10m'
 server_address = ':8981'
 
-# 管理员令牌（用于访问管理界面）
-# 请更改为强密码
-admin_token = 'admin123'
-
-# API 令牌（用于保护 /v1 代理接口）
-# 请更改为强密码
-api_token = 'api123'
-
-# ModelScope API 密钥列表
-# 可以在这里预配置一些密钥，也可以通过管理界面添加
-api_keys = []
-
-# 重新激活阈值（暂未使用）
-reactivation_threshold = '10m'
-
-# 自动重新激活设置
 [auto_reactivation]
-# 是否启用自动重新激活功能
-enabled = true
-
-# 运行模式：interval（间隔）或 scheduled（定时）
-mode = 'scheduled'
-
-# 间隔模式下的重新激活间隔时间
-# 支持格式如 "10m", "1h30m", "2h" 等
-interval = '3s'
-
-# 定时模式下的 Cron 表达式
-# 格式：分钟 小时 日 月 周几
-# 示例："0 0 * * *" 表示每天午夜执行
 cron_spec = '22 23 * * *'
-
-# 时区设置
+enabled = true
+interval = '5s'
+mode = 'interval'
 timezone = 'Asia/Shanghai'

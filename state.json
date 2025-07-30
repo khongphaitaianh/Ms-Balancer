@@ -12,12 +12,5 @@
     "disabled_at": "0001-01-01T00:00:00Z",
     "last_failure_reason": "",
     "source": "user"
-  },
-  {
-    "value": "ms-a6",
-    "status": "active",
-    "disabled_at": "0001-01-01T00:00:00Z",
-    "last_failure_reason": "",
-    "source": "user"
   }
 ]

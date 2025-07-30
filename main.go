@@ -77,12 +77,12 @@ func main() {
 	taskScheduler := scheduler.New(keyManager, logger)
 	taskScheduler.Start(cfg.AutoReactivation)
 
-	// Create AdminHandler instance
-	adminHandler := webui.NewAdminHandler(keyManager, logger, cfg.AdminToken, taskScheduler)
+	// Initialize dynamic authentication middlewares
+	adminAuth := authmiddleware.NewDynamicAuthenticator(cfg.AdminToken)
+	apiAuth := authmiddleware.NewDynamicAuthenticator(cfg.ApiToken)
 
-	// Initialize authentication middlewares
-	adminAuth := authmiddleware.Authenticator(cfg.AdminToken)
-	apiAuth := authmiddleware.Authenticator(cfg.ApiToken)
+	// Create AdminHandler instance
+	adminHandler := webui.NewAdminHandler(keyManager, logger, cfg.AdminToken, taskScheduler, adminAuth, apiAuth)
 
 	// Initialize chi router
 	r := chi.NewRouter()
@@ -106,14 +106,14 @@ func main() {
 
 	// Mount v1 API routes with API token authentication
 	r.Route("/v1", func(r chi.Router) {
-		r.Use(apiAuth) // Apply API token authentication
+		r.Use(apiAuth.Middleware()) // Apply API token authentication
 		r.Get("/models", chatProxy.HandleGetModels)
 		r.Post("/chat/completions", chatProxy.ServeHTTP)
 	})
 
 	// Mount admin API routes with admin token authentication
 	r.Route("/admin/api", func(r chi.Router) {
-		r.Use(adminAuth) // Apply admin token authentication
+		r.Use(adminAuth.Middleware()) // Apply admin token authentication
 		r.Get("/keys", adminHandler.ListKeys)
 		r.Post("/keys", adminHandler.AddKey)
 		r.Delete("/keys", adminHandler.DeleteKey)

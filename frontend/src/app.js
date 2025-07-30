@@ -184,12 +184,14 @@ class AdminApp {
                 localStorage.setItem('adminToken', token);
                 this.adminToken = token;
 
-                // 清空主内容区并初始化应用
+                // 清空主内容区
                 mainContent.innerHTML = '';
-                this.init();
 
-                // 现在有了token，可以处理路由了
-                this.handleRoute();
+                // 重新登录后默认进入密钥管理页面
+                window.location.hash = '#keys';
+
+                // 重新初始化应用
+                this.init();
 
                 this.showNotification('认证成功，欢迎使用管理面板！', 'success');
 
@@ -227,6 +229,12 @@ class AdminApp {
 
         // 清除内存中的令牌
         this.adminToken = null;
+
+        // 清除当前页面状态
+        this.currentPage = null;
+
+        // 清除URL hash，确保重新登录时进入默认页面
+        window.location.hash = '';
 
         // 显示退出成功消息
         this.showNotification('已安全退出登录', 'success');
@@ -1810,6 +1818,11 @@ class AdminApp {
 
             console.log('Saving settings:', settingsData);
 
+            // Check if admin token is being changed
+            const currentAdminToken = this.adminToken;
+            const newAdminToken = settingsData.admin_token;
+            const isAdminTokenChanged = newAdminToken && newAdminToken !== currentAdminToken;
+
             // Send to backend
             const response = await fetch('/admin/api/settings', {
                 method: 'POST',
@@ -1827,7 +1840,17 @@ class AdminApp {
             const result = await response.json();
             console.log('Settings saved successfully:', result);
 
-            this.showNotification('设置已保存成功！', 'success');
+            // If admin token was changed, show notification and logout
+            if (isAdminTokenChanged) {
+                this.showNotification('管理员令牌已更新！请使用新令牌重新登录。', 'warning');
+
+                // Wait a moment for user to see the notification
+                setTimeout(() => {
+                    this.logout();
+                }, 2000);
+            } else {
+                this.showNotification('设置已保存成功！', 'success');
+            }
 
         } catch (error) {
             console.error('Error saving settings:', error);
